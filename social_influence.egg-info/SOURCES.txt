@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+setup.py
+social_influence.egg-info/PKG-INFO
+social_influence.egg-info/SOURCES.txt
+social_influence.egg-info/dependency_links.txt
+social_influence.egg-info/top_level.txt

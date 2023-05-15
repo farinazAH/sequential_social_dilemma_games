@@ -75,6 +75,8 @@ def extra_scm_stats(policy, train_batch):
             policy.cur_curiosity_reward_weight_tensor, tf.float32
         ),
         SOCIAL_CURIOSITY_REWARD: train_batch[SOCIAL_CURIOSITY_REWARD],
+        "inequity_aversion_reward": train_batch["inequity_aversion_reward"],
+        "extrinsic_reward": train_batch["extrinsic_reward"],
         "scm_loss": policy.scm_loss,
     }
     return scm_stats
@@ -87,7 +89,7 @@ def postprocess_ppo_scm(policy, sample_batch, other_agent_batches=None, episode=
     :return: Updated trajectory (batch)
     """
     batch = moa_postprocess_trajectory(policy, sample_batch)
-    batch = scm_postprocess_trajectory(policy, batch)
+    batch = scm_postprocess_trajectory(policy, batch, other_agent_batches) # FA: I added other_agent_batches to input list.
     batch = postprocess_ppo_gae(policy, batch)
     return batch
 

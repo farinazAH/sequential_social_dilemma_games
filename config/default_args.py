@@ -22,7 +22,7 @@ def add_default_args(parser):
         "--model",
         type=str,
         default="baseline",
-        help="Name of the model to use. Can be baseline, moa, or scm",
+        help="Name of the model to use. Can be baseline, moa, emurel(The scm model is adapted to the emurel method)",
     )
     parser.add_argument(
         "--resume", action="store_true", default=False, help="Resume previous experiment.",
@@ -91,7 +91,7 @@ def add_default_args(parser):
     parser.add_argument(
         "--num_envs_per_worker",
         type=int,
-        default=8,
+        default=2, #8
         help="Number of envs to place on a single worker",
     )
     parser.add_argument(

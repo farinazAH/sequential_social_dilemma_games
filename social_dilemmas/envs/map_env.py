@@ -143,12 +143,16 @@ class MapEnv(MultiAgentEnv):
                 "prev_visible_agents": Box(
                     low=0, high=1, shape=(self.num_agents - 1,), dtype=np.uint8,
                 ),
+                # FA
+                # "reward_eligibility": Box(
+                #     low=np.array([np.float32(-np.inf)]), high=np.array([np.float32(np.inf)]), dtype=np.float32,
+                # ),
             }
         obs_space = Dict(obs_space)
         # Change dtype so that ray can put all observations into one flat batch
         # with the correct dtype.
         # See DictFlatteningPreprocessor in ray/rllib/models/preprocessors.py.
-        obs_space.dtype = np.uint8
+        obs_space.dtype = np.uint8   # np.float32  FA
         return obs_space
 
     def custom_reset(self):
@@ -266,10 +270,12 @@ class MapEnv(MultiAgentEnv):
                     "other_agent_actions": prev_actions,
                     "visible_agents": visible_agents,
                     "prev_visible_agents": agent.prev_visible_agents,
+                    # FA
+                    # "reward_eligibility": np.array([agent.get_reward_eligibility()]).astype(np.float32)
                 }
                 agent.prev_visible_agents = visible_agents
             else:
-                observations[agent.agent_id] = {"curr_obs": rgb_arr}
+                observations[agent.agent_id] = {"curr_obs": rgb_arr,}
             rewards[agent.agent_id] = agent.compute_reward()
             dones[agent.agent_id] = agent.get_done()
 
@@ -279,6 +285,7 @@ class MapEnv(MultiAgentEnv):
                 rewards[agent] = collective_reward
 
         dones["__all__"] = np.any(list(dones.values()))
+
         return observations, rewards, dones, info
 
     def reset(self):
@@ -315,6 +322,7 @@ class MapEnv(MultiAgentEnv):
                     "other_agent_actions": prev_actions,
                     "visible_agents": visible_agents,
                     "prev_visible_agents": visible_agents,
+                    # "reward_eligibility": np.array([0.0])    #FA
                 }
                 agent.prev_visible_agents = visible_agents
             else:

@@ -57,6 +57,8 @@ class BaselineModel(RecurrentTFModelV2):
         self.register_variables(self.policy_model.rnn_model.variables)
         self.policy_model.rnn_model.summary()
 
+        # self._reward_eligibility = None   # FA
+
     @override(ModelV2)
     def forward(self, input_dict, state, seq_lens):
         """
@@ -67,6 +69,9 @@ class BaselineModel(RecurrentTFModelV2):
         :param seq_lens: LSTM sequence lengths.
         :return: The policy logits and state.
         """
+
+        # self._reward_eligibility = input_dict["obs"]["reward_eligibility"]  # FA
+
         trunk = self.encoder_model(input_dict["obs"]["curr_obs"])
         new_dict = {"curr_obs": add_time_dimension(trunk, seq_lens)}
 
@@ -109,3 +114,5 @@ class BaselineModel(RecurrentTFModelV2):
         :return: Initial state of this model. This model only has LSTM state from the policy_model.
         """
         return self.policy_model.get_initial_state()
+
+

@@ -43,6 +43,7 @@ class Agent(object):
         self.col_size = col_size
         self.reward_this_turn = 0
         self.prev_visible_agents = None
+        # self.reward_eligibility = 0.0   #FA
 
     @property
     def action_space(self):
@@ -85,6 +86,10 @@ class Agent(object):
         reward = self.reward_this_turn
         self.reward_this_turn = 0
         return reward
+
+    # def get_reward_eligibility(self):  # FA
+    #     self.reward_eligibility = np.float32(self.reward_eligibility * 0.9 * 0.9 + self.reward_this_turn)
+    #     return self.reward_eligibility
 
     def set_pos(self, new_pos):
         self.pos = np.array(new_pos)

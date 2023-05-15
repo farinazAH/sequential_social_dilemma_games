@@ -1,6 +1,6 @@
 import os.path
 from math import sqrt
-
+import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -168,8 +168,8 @@ def plot_csvs_results(paths):
     env, model_name = get_env_and_model_name_from_path(path)
 
     dfs = []
-    for path in paths:
-        df = pd.read_csv(path, sep=",")
+    for path in paths: # FA
+        df = pd.read_csv(path, sep=",")#, quoting=csv.QUOTE_MINIMAL, error_bad_lines=False)
         # Set NaN values to 0, common at start of training due to ray behavior
         df = df.fillna(0)
         dfs.append(df)
@@ -208,6 +208,7 @@ def plot_csvs_results(paths):
         PlotGraphics("scm_loss", "SCM loss", "black"),
         PlotGraphics("social_influence_reward", "MOA reward", "black"),
         PlotGraphics("social_curiosity_reward", "Curiosity reward", "black"),
+        PlotGraphics("inequity_aversion_reward", "IA reward", "black"),  # FA        
         PlotGraphics("cur_influence_reward_weight", "Influence reward weight", "orange"),
         PlotGraphics("cur_curiosity_reward_weight", "Curiosity reward weight", "orange"),
         PlotGraphics("extrinsic_reward", "Extrinsic reward", "g"),
@@ -258,6 +259,8 @@ def get_color_from_model_name(model_name):
         "moa": "red",
         "scm": "orange",
         "scm no influence reward": "green",
+        "ia": "#8A2BE2",    #magenta "#FF0090"
+        "eimurel": "green"
     }
     name_lower = model_name.lower()
     if name_lower in name_to_color.keys():
@@ -279,6 +282,10 @@ def get_env_and_model_name_from_path(path):
         model_name = "baseline"
     elif "moa" in category_path:
         model_name = "MOA"
+    elif "IA" in category_path:
+        model_name = "IA"
+    elif "EIMuReL" in category_path:
+        model_name = "EIMuReL"
     elif "scm" in category_path:
         if "no_influence" in category_path:
             model_name = "SCM no influence reward"
@@ -291,9 +298,10 @@ def get_env_and_model_name_from_path(path):
 
 
 def get_experiment_rewards(paths):
+
     dfs = []
-    for path in paths:
-        df = pd.read_csv(path, sep=",")
+    for path in paths:  # FA
+        df = pd.read_csv(path, sep=",", quoting=csv.QUOTE_MINIMAL, error_bad_lines=False)
         # Set NaN values to 0, common at start of training due to ray behavior
         df = df.fillna(0)
         dfs.append(df)
@@ -306,6 +314,7 @@ def get_experiment_rewards(paths):
     timesteps_totals = [
         [timestep / 1e8 for timestep in timesteps_total] for timesteps_total in timesteps_totals
     ]
+
 
     most_timesteps = np.max(list(map(len, timesteps_totals)))
     x_min = np.nanmin(list(map(np.nanmin, timesteps_totals)))
@@ -386,3 +395,5 @@ if __name__ == "__main__":
     plot_separate_results()
     print("Plotting combined results..")
     plot_combined_results()
+
+

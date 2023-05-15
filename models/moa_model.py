@@ -50,6 +50,7 @@ class MOAModel(RecurrentTFModelV2):
         self._visibility = None
         self._social_influence_reward = None
         self._true_one_hot_actions = None
+        self.all_actions = None  #FA: I added this line.
 
         self.moa_encoder_model = self.create_moa_encoder_model(obs_space, model_config)
         self.register_variables(self.moa_encoder_model.variables)
@@ -128,6 +129,11 @@ class MOAModel(RecurrentTFModelV2):
         :param seq_lens: LSTM sequence lengths.
         :return: The agent's own action logits and the new model state.
         """
+
+        # print("***************************")
+        # print(input_dict);
+        # print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+
         # Evaluate non-lstm layers
         actor_critic_fc_output, moa_fc_output = self.moa_encoder_model(input_dict["obs"]["curr_obs"])
 
@@ -180,7 +186,14 @@ class MOAModel(RecurrentTFModelV2):
         prev_moa_trunk = input_dict["prev_moa_trunk"]
         other_actions = input_dict["other_agent_actions"]
         agent_action = tf.expand_dims(input_dict["prev_actions"], axis=-1)
+
+        # print("************************")
+        # print(other_actions)
+        # print(agent_action)
+        # print("************************")
+
         all_actions = tf.concat([agent_action, other_actions], axis=-1, name="concat_true_actions")
+        self.all_actions = all_actions #FA: I added this line.
         self._true_one_hot_actions = self._reshaped_one_hot_actions(all_actions, "forward_one_hot")
         true_action_pass_dict = {
             "curr_obs": prev_moa_trunk,

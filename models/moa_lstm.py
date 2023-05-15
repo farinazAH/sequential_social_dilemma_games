@@ -65,6 +65,11 @@ class MoaLSTM(RecurrentTFModelV2):
         """
         rnn_input = [input_dict["curr_obs"], seq_lens] + state
         rnn_input.insert(1, input_dict["prev_total_actions"])
+
+        # print("00000000000000000000000000000000")
+        # print(rnn_input)
+        # print("00000000000000000000000000000000")
+
         model_out, h, c = self.rnn_model(rnn_input)
         return model_out, h, c
 

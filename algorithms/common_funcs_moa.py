@@ -122,6 +122,7 @@ def setup_moa_loss(logits, policy, train_batch):
 
 def moa_postprocess_trajectory(policy, sample_batch, other_agent_batches=None, episode=None):
     # Weigh social influence reward and add to batch.
+    # print(sample_batch)
     sample_batch = weigh_and_add_influence_reward(policy, sample_batch)
 
     return sample_batch
@@ -141,8 +142,8 @@ def weigh_and_add_influence_reward(policy, sample_batch):
 
     # Add to trajectory
     sample_batch[SOCIAL_INFLUENCE_REWARD] = influence
-    sample_batch["extrinsic_reward"] = sample_batch["rewards"]
-    sample_batch["rewards"] = sample_batch["rewards"] + influence
+    # sample_batch["extrinsic_reward"] = sample_batch["rewards"] # FA: I commented this line.
+    # sample_batch["rewards"] = sample_batch["rewards"] + influence   # FA: I commented this line.
 
     return sample_batch
 

@@ -141,7 +141,7 @@ def build_a3c_moa_trainer(moa_config):
     trainer_name = "MOAA3CTrainer"
     moa_config["use_gae"] = False
 
-    a3c_tf_policy = build_tf_policy(
+    moa_a3c_policy = build_tf_policy(
         name="A3CAuxTFPolicy",
         get_default_config=lambda: moa_config,
         loss_fn=actor_critic_loss,
@@ -154,11 +154,11 @@ def build_a3c_moa_trainer(moa_config):
         mixins=[ValueNetworkMixin, LearningRateSchedule] + get_moa_mixins(),
     )
 
-    trainer = build_trainer(
+    moa_a3c_trainer = build_trainer(
         name=trainer_name,
-        default_policy=a3c_tf_policy,
+        default_policy=moa_a3c_policy,
         default_config=moa_config,
         validate_config=validate_config,
     )
 
-    return trainer
+    return moa_a3c_trainer

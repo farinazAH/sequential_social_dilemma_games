@@ -18,3 +18,4 @@ python train.py \
 --entropy_coeff 0.00176 \
 --lr_schedule_steps 0 20000000 \
 --lr_schedule_weights .00126 .000012
+

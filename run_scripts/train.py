@@ -15,6 +15,7 @@ from ray.tune.schedulers import PopulationBasedTraining
 
 from algorithms.a3c_baseline import build_a3c_baseline_trainer
 from algorithms.a3c_moa import build_a3c_moa_trainer
+from algorithms.a3c_scm import build_a3c_scm_trainer
 from algorithms.impala_baseline import build_impala_baseline_trainer
 from algorithms.impala_moa import build_impala_moa_trainer
 from algorithms.ppo_baseline import build_ppo_baseline_trainer
@@ -199,8 +200,7 @@ def get_trainer(args, config):
             trainer = build_impala_moa_trainer(config)
     elif args.model == "scm":
         if args.algorithm == "A3C":
-            # trainer = build_a3c_scm_trainer(config)
-            raise NotImplementedError
+            trainer = build_a3c_scm_trainer(config)
         if args.algorithm == "PPO":
             trainer = build_ppo_scm_trainer(config)
         if args.algorithm == "IMPALA":
@@ -243,7 +243,10 @@ def get_experiment_name(args):
     if sys.gettrace() is not None:
         exp_name = "debug_experiment"
     elif args.exp_name is None:
-        exp_name = args.env + "_" + args.model + "_" + args.algorithm
+        if args.model == "scm":
+            exp_name = args.env + "_EMuReL_" + args.algorithm
+        else:
+            exp_name = args.env + "_" + args.model + "_" + args.algorithm
     else:
         exp_name = args.exp_name
     return exp_name
@@ -373,5 +376,7 @@ def run(args, experiments):
 
 if __name__ == "__main__":
     parsed_args = parser.parse_args()
+    if parsed_args.model == "emurel":
+        parsed_args.model = "scm"
     experiment = create_experiment(parsed_args)
     run(parsed_args, experiment)

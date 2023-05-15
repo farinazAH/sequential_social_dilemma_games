@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/eugenevinitsky/sequential_social_dilemma_games.svg?branch=master)](https://travis-ci.com/eugenevinitsky/sequential_social_dilemma_games)
+﻿ [![Build Status](https://travis-ci.com/eugenevinitsky/sequential_social_dilemma_games.svg?branch=master)](https://travis-ci.com/eugenevinitsky/sequential_social_dilemma_games)
 
 # Sequential Social Dilemma Games
 This repo is an open-source implementation of DeepMind's Sequential Social Dilemma (SSD) multi-agent game-theoretic environments [[1]](https://arxiv.org/abs/1702.03037). SSDs can be thought of as analogous to spatially and temporally extended Prisoner's Dilemma-like games. The reward structure poses a dilemma because individual short-term optimal strategies lead to poor long-term outcomes for the group.
@@ -41,6 +41,14 @@ After the setup, you can run experiments like so:
 - To train the MOA with 5 agents:
 `python3 train.py --model moa --num_agents 5`
 
+- To train the EMuReL method:
+`python3 train.py --model emurel`
+or
+`python3 train.py --model scm`
+
+The SCM algorithm with the same parameter setting as in [Heemskerk , H. Social curiosity in deep multi-agent reinforcement learning. Master’s thesis, 2020.] was adapted to the proposed EMuReL method. 
+
+
 Many more options are available which can be found in [default_args.py](config/default_args.py). A collection of preconfigured training scripts can be found in [run_scripts](run_scripts). 
 
 Note that the initialization time can be rather high (up to 5 minutes) the more agents you use, and the more complex your used model is.
@@ -81,15 +89,25 @@ Every environment that subclasses MapEnv probably needs to implement the followi
 
 ## PPO Results
 
-The below graphs display results for cleanup/harvest using un-tuned PPO. As of yet, A3C remains untested.
+The below graphs display results for cleanup/harvest using un-tuned PPO.
 
 **Collective cleanup reward**:
 
-<img src="images/cleanup_collective_reward.svg" alt="Collective reward plot of cleanup" width="460.8" height="345.6"/>
+<img src="images/cleanup_collective_reward_PPO_EMuReL.svg" alt="Collective reward plot of cleanup" width="460.8" height="345.6"/>
 
 **Collective harvest reward**:
 
-<img src="images/harvest_collective_reward.svg" alt="Collective reward plot of harvest" width="460.8" height="345.6"/>
+<img src="images/harvest_collective_reward_PPO_EMuReL.svg" alt="Collective reward plot of harvest" width="460.8" height="345.6"/>
+
+## A3C Results
+
+The below graphs display results for harvest using un-tuned A3C.
+
+
+**Collective harvest reward**:
+
+<img src="images/harvest_collective_reward_A3C_EMuReL.svg" alt="Collective reward plot of harvest" width="460.8" height="345.6"/>
+
 
 
 ## Relevant papers
@@ -116,3 +134,4 @@ publisher = {GitHub},
 note = {GitHub repository},
 howpublished = {\url{https://github.com/eugenevinitsky/sequential_social_dilemma_games/issues/182}}
 }
+

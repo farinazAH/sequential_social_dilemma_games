@@ -118,6 +118,8 @@ def postprocess_ppo_moa(policy, sample_batch, other_agent_batches=None, episode=
     Then, add the policy logits, VF preds, and advantages to the trajectory.
     :return: Updated trajectory (batch)
     """
+    # print(other_agent_batches)
+
     batch = moa_postprocess_trajectory(policy, sample_batch)
     batch = postprocess_ppo_gae(policy, batch)
     return batch

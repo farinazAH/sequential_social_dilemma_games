@@ -12,7 +12,7 @@ tf = try_import_tf()
 PREDICTED_OBSERVATIONS = "pred_obs"
 SOCIAL_CURIOSITY_REWARD = "social_curiosity_reward"
 INVERSE_MODEL_LOSS = "inverse_model_loss"
-
+ENVIRONMENTAL_IMPACT = "environmental_impact" # FA: I added this line.
 
 class SocialCuriosityScheduleMixIn(object):
     def __init__(self, config):
@@ -102,11 +102,11 @@ def setup_scm_loss(policy, train_batch):
 
 def scm_postprocess_trajectory(policy, sample_batch, other_agent_batches=None, episode=None):
     # Weigh social curiosity reward and add to batch.
-    sample_batch = weigh_and_add_curiosity_reward(policy, sample_batch)
+    sample_batch = weigh_and_add_curiosity_reward(policy, sample_batch, other_agent_batches)  # FA: I changed this line.
     return sample_batch
 
 
-def weigh_and_add_curiosity_reward(policy, sample_batch):
+def weigh_and_add_curiosity_reward(policy, sample_batch, other_agent_batches):  # FA: I changed this function.
     """Compute curiosity of this agent and add to rewards.
     """
     cur_curiosity_reward_weight = policy.compute_curiosity_reward_weight()
@@ -119,16 +119,66 @@ def weigh_and_add_curiosity_reward(policy, sample_batch):
 
     # Add to trajectory
     sample_batch[SOCIAL_CURIOSITY_REWARD] = reward
-    sample_batch["rewards"] = sample_batch["rewards"] + reward
+    # sample_batch["rewards"] = sample_batch["rewards"] + reward  # FA: I commented this line.
+
+    # FA: Begin
+    inequity_aversion_reward = inequity_aversion_eligibility(policy, sample_batch, other_agent_batches)
+    # Add to trajectory
+    sample_batch["extrinsic_reward"] = sample_batch["rewards"]
+    sample_batch["inequity_aversion_reward"] = inequity_aversion_reward
+    sample_batch["rewards"] = sample_batch["rewards"] + inequity_aversion_reward
+    # FA: End
 
     return sample_batch
 
+
+def inequity_aversion_eligibility(policy, sample_batch, other_agent_batches):  # FA: I added this function.
+    my_reward_eligibility = np.array([0.0] * len(sample_batch['rewards']))
+    my_reward_eligibility[0] = sample_batch['rewards'][0]
+    for i in range(1, len(my_reward_eligibility)):
+        my_reward_eligibility[i] = 0.9 * 0.9 * my_reward_eligibility[i-1] + sample_batch['rewards'][i]
+    # print('*************')
+    # # print([(a, b) for a, b in zip(sample_batch['rewards'], my_reward_eligibility)])
+    # # print(sample_batch)
+    # print(other_agent_batches)
+    # print('+++++++++++++++++++')
+    inequity_reward = np.array([0.0] * len(sample_batch['rewards']))
+    if other_agent_batches is not None:
+        alpha_i = 0 #5.0
+        beta_i = 0.05
+        N_1 = len(other_agent_batches)
+        last_impact = np.zeros([1, N_1], dtype=np.float32)
+
+        #==> environmental_impact is normalized between 0 and 1.
+        environmental_impact = np.concatenate((sample_batch[ENVIRONMENTAL_IMPACT][1:], last_impact))
+
+        agent_j_index = 0
+        alpha = -1 * (alpha_i / N_1)
+        beta = -1 * (beta_i / N_1)
+        disadvantageous_inequity = np.array([0.0] * len(sample_batch['rewards']))
+        advantageous_inequity = np.array([0.0] * len(sample_batch['rewards']))
+        for key, value in other_agent_batches.items():
+            other_eligibility_rewards = np.array([0.0] * len(sample_batch['rewards']))
+            other_eligibility_rewards[0] = value[1]['rewards'][0]
+            for i in range(1, len(other_eligibility_rewards)):
+                other_eligibility_rewards[i] = 0.9 * 0.9 * other_eligibility_rewards[i - 1] + value[1]['rewards'][i]
+            
+            other_eligibility_rewards = other_eligibility_rewards * environmental_impact[:, agent_j_index]
+            
+            agent_j_index = agent_j_index+1
+            disadvantageous_inequity += np.maximum(other_eligibility_rewards-my_reward_eligibility, 0.0)
+            advantageous_inequity += np.maximum(my_reward_eligibility-other_eligibility_rewards, 0.0)
+        inequity_reward = alpha * disadvantageous_inequity + beta * advantageous_inequity
+
+    return inequity_reward
+    
 
 def scm_fetches(policy):
     """Adds observations and causal influence to experience train_batches."""
     return {
         SOCIAL_CURIOSITY_REWARD: policy.model.social_curiosity_reward(),
         INVERSE_MODEL_LOSS: policy.model.inverse_model_loss(),
+        ENVIRONMENTAL_IMPACT:  policy.model.environmental_impact(),  # FA: I added this line.
     }
 
 

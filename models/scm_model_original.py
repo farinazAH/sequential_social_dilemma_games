@@ -23,7 +23,6 @@ class SocialCuriosityModule(MOAModel):
             obs_space, action_space, num_outputs, model_config, name
         )
         self._social_curiosity_reward = None
-        self._environmental_impact = None # FA: I added tihs line.
         self._inverse_model_loss = None
 
         self.scm_encoder_model = self.create_scm_encoder_model(obs_space, model_config)
@@ -72,7 +71,7 @@ class SocialCuriosityModule(MOAModel):
         Inputs: [Encoded state at t - 1,
                  Actions at t - 1,
                  LSTM output at t - 1,
-                 Social influence at t - 1]  #FA: I deleted this input from the forward model
+                 Social influence at t - 1]
         Output: Predicted encoded state at t
         :param model_config: The model config dict.
         :param encoder: The SCM encoder submodel.
@@ -83,7 +82,7 @@ class SocialCuriosityModule(MOAModel):
             self.create_encoded_input_layer(encoder_output_size, "encoded_input_now"),
             self.create_action_input_layer(self.action_space.n, self.num_other_agents + 1),
             self.create_lstm_input_layer(model_config),
-            # tf.keras.layers.Input(shape=1, name="influence_reward_input"),  #FA
+            tf.keras.layers.Input(shape=1, name="influence_reward_input"),
         ]
         inputs_concatenated = tf.keras.layers.concatenate(inputs)
         activation = get_activation_fn(model_config.get("fcnet_activation"))
@@ -103,8 +102,9 @@ class SocialCuriosityModule(MOAModel):
         Create the inverse submodel of the SCM.
         Inputs:[Encoded state at t,
                 Encoded state at t - 1,
+                Actions at t - 1,
                 MOA LSTM output at t - 1]
-        Output: Predicted Actions at t - 1, #FA: I change the input and output of the inverse model
+        Output: Predicted social influence reward at t - 1
         :param model_config: The model config dict.
         :param encoder: The SCM encoder submodel.
         :return: A new inverse model.
@@ -113,7 +113,7 @@ class SocialCuriosityModule(MOAModel):
         inputs = [
             self.create_encoded_input_layer(encoder_output_size, "encoded_input_now"),
             self.create_encoded_input_layer(encoder_output_size, "encoded_input_next"),
-            # self.create_action_input_layer(self.action_space.n, self.num_other_agents + 1),
+            self.create_action_input_layer(self.action_space.n, self.num_other_agents + 1),
             self.create_lstm_input_layer(model_config),
         ]
         inputs_concatenated = tf.keras.layers.concatenate(inputs)
@@ -123,8 +123,8 @@ class SocialCuriosityModule(MOAModel):
             32, name="fc_forward", activation=activation, kernel_initializer=normc_initializer(1.0),
         )(inputs_concatenated)
 
-        output_layer = tf.keras.layers.Dense(  #FA: I changed the output from 1 to Predicted Actions at t - 1
-            (self.action_space.n * (self.num_other_agents + 1)), activation="relu", kernel_initializer=normc_initializer(1.0),
+        output_layer = tf.keras.layers.Dense(
+            1, activation="relu", kernel_initializer=normc_initializer(1.0),
         )(fc_layer)
 
         return tf.keras.Model(inputs, output_layer, name="SCM_Inverse_Model")
@@ -155,6 +155,7 @@ class SocialCuriosityModule(MOAModel):
         encoded_state = self.scm_encoder_model(input_dict["obs"]["curr_obs"])
         new_state.append(encoded_state)
 
+        influence_reward = tf.expand_dims(self._social_influence_reward, axis=-1)
         one_hot_actions = tf.reshape(
             self._true_one_hot_actions, shape=[-1, self._true_one_hot_actions.shape[-1]]
         )
@@ -171,7 +172,7 @@ class SocialCuriosityModule(MOAModel):
             # Encoded state at t-1
             "encoded_input_now": state[6],
             # Social influence at t-1
-            # "influence_reward_input": influence_reward,  #FA
+            "influence_reward_input": influence_reward,
             # Actions at t-1
             "action_input": one_hot_actions,
             # MOA LSTM output at t-1
@@ -184,65 +185,30 @@ class SocialCuriosityModule(MOAModel):
             # Encoded state at t
             "encoded_input_next": encoded_state,
             # Actions at t-1
-            # "action_input": one_hot_actions,  #FA
+            "action_input": one_hot_actions,
             # MOA LSTM output at t-1
             "lstm_input": lstm_input,
         }
 
         forward_model_output = self.forward_model(forward_model_input)
         inverse_model_output = self.inverse_model(inverse_model_input)
-        # FA: curiosity_reward is forward_model_loss (L_F)
+
         curiosity_reward = self.compute_curiosity_reward(encoded_state, forward_model_output)
         curiosity_reward = tf.reshape(curiosity_reward, [-1])
         self._social_curiosity_reward = curiosity_reward
 
-        all_actions = self.all_actions  #FA: I added this line.
-        all_actions = tf.reshape(all_actions, [-1, self.num_other_agents + 1])  # FA: I added this line.
-        all_actions = tf.cast(all_actions, tf.int32) #FA: I added this line.
-        inverse_model_output = tf.reshape(inverse_model_output, [-1, self.num_other_agents+1, self.num_outputs]) #FA: I added this line.
-        inverse_model_loss = self.compute_inverse_model_loss(all_actions, inverse_model_output) #FA: I changed this line.
+        inverse_model_loss = self.compute_inverse_model_loss(influence_reward, inverse_model_output)
         self._inverse_model_loss = tf.reshape(inverse_model_loss, [-1])
-        
-        # Elimination Method
-        # FA: Begin
-        # Example: 3 agents and 4 num_outputs
-        #                              agents= [agent_k, agent_j1, agent_j2]
-        #                                  tf_ones=[0000 1111 1111] , one_hot_actions=[0001 0100 0010]
-        # after applied  tf.roll 1 time ==>tf_ones=[1111 0000 1111] , one_hot_actions=[0001 0100 0010]
-        #                                 l_f_remove = [ajent_j1 , ajent_j2]
-        # FA: As curiosity_reward is forward_model_loss (L_F), I can use it to compute other agent's merit.
-        l_f_remove = tf.fill(tf.shape(all_actions), 0.0)
-        ones = np.ones((self.num_other_agents+1) * self.num_outputs)
-        ones[0:self.num_outputs] = 0
-        tf_ones = tf.Variable(ones, dtype=tf.float32)
-        for agent_j in range(self.num_other_agents):
-            tf_ones = tf.roll(tf_ones, self.num_outputs, axis=0)
-            forward_model_input["action_input"] = tf_ones * one_hot_actions   # Actions at t-1 without action of agent j
-            forward_model_output_remove_agent_j = self.forward_model(forward_model_input)
-            l_f_remove_agent_j = self.compute_curiosity_reward(forward_model_output, forward_model_output_remove_agent_j)
-            l_f_remove_agent_j = tf.reshape(l_f_remove_agent_j, [-1, 1])
-            l_f_remove = tf.concat([l_f_remove, l_f_remove_agent_j], -1)
-        l_f_remove = self.NormalizeData(l_f_remove)  # normalize min = 0 and max = Max(data)
-        l_f_remove = l_f_remove[:, all_actions.shape.as_list()[1]:]  # remove added 0 valuses
-        self._environmental_impact = l_f_remove
-        #  FA: End      
 
         return output, new_state
-
-    def NormalizeData(self, data):
-        return (data - tf.reshape(tf.reduce_min(data, axis=1),[-1,1])) / (tf.reshape(tf.reduce_max(data, axis=1),[-1,1]) - tf.reshape(tf.reduce_min(data, axis=1),[-1,1]))
 
     def compute_curiosity_reward(self, true_encoded_state, predicted_encoded_state):
         mse = self.batched_mse(true_encoded_state, predicted_encoded_state)
         div_mse = tf.multiply(mse, 0.5, name="mult_mse")
         return div_mse
 
-    def compute_inverse_model_loss(self, true_actions, predicted_actions):  #FA: I changed this function.
-        # Compute softmax cross entropy
-        scm_ce_per_entry = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=true_actions, logits=predicted_actions
-        )        
-        return scm_ce_per_entry
+    def compute_inverse_model_loss(self, true_influence_reward, predicted_influence_reward):
+        return self.batched_mse(true_influence_reward, predicted_influence_reward)
 
     @staticmethod
     def batched_mse(true_tensor, pred_tensor):
@@ -260,9 +226,6 @@ class SocialCuriosityModule(MOAModel):
 
     def social_curiosity_reward(self):
         return self._social_curiosity_reward
-
-    def environmental_impact(self): # FA: I added this function.
-        return self._environmental_impact
 
     def inverse_model_loss(self):
         return self._inverse_model_loss
